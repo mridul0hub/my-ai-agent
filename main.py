@@ -1,31 +1,53 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Optional
+import google.generativeai as genai
+import os
 
-# FastAPI ka instance banao
 app = FastAPI()
 
-# Data ka structure define karo (Pydantic ki madad se)
-class WebhookPayload(BaseModel):
-    user_name: str
-    message: str
-    priority: Optional[int] = 1
+# 1. Data Validation Model (Pydantic)
+class EmailRequest(BaseModel):
+    sender: str
+    subject: Optional[str] = "No Subject"
+    body: str
 
-# 1. GET Root: Check karne ke liye ki server zinda hai
+# Gemini Setup (Apni API Key yahan dalein)
+genai.configure(api_key="YOUR_GEMINI_API_KEY")
+model = genai.GenerativeModel('gemini-pro')
+
 @app.get("/")
 def home():
-    return {"message": "Bhai, AI Factory Live Hai!", "status": "Running"}
+    return {"status": "Online", "agent": "Email Triage Agent Ready"}
 
-# 2. POST Webhook: Jahan data receive hoga
+# 2. Webhook Endpoint
 @app.post("/webhook")
-async def receive_webhook(payload: WebhookPayload):
-    print(f"Data Aaya! Name: {payload.user_name}, Msg: {payload.message}")
+async def handle_email(email: EmailRequest):
+    print(f"New Email from: {email.sender}") # Ye Render ke logs mein dikhega
     
-    # Yahan hum logic likh sakte hain (jaise Gemini ko call karna)
-    response_msg = f"Hello {payload.user_name}, humein aapka message mil gaya!"
+    # AI ke liye Instructions
+    system_prompt = f"""
+    Analyze this email:
+    Sender: {email.sender}
+    Subject: {email.subject}
+    Body: {email.body}
     
-    return {
-        "status": "success",
-        "ai_response": response_msg,
-        "received_data": payload
-    }
+    Task: 
+    1. Classify Intent (Refund, Question, Complaint, or Spam)
+    2. Write a 1-line Summary
+    3. Draft a short, professional reply
+    
+    Output format:
+    Intent: [Text]
+    Summary: [Text]
+    Reply: [Text]
+    """
+    
+    try:
+        response = model.generate_content(system_prompt)
+        return {
+            "status": "success",
+            "ai_analysis": response.text
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
