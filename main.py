@@ -16,7 +16,7 @@ class EmailRequest(BaseModel):
 # Gemini Setup
 api_key = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key="AIzaSyCAalvmpqhoydkScd0tVyOby1HnyWPRZWo")
-model = genai.GenerativeModel('gemini-1.5-flash') # 'gemini-pro' ki jagah flash fast hai
+model = genai.GenerativeModel('gemini-pro')
 
 @app.get("/")
 def home():
