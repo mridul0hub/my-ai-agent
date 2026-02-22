@@ -1,55 +1,44 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Optional
-import google.generativeai as genai
+import requests
 import os
 
 app = FastAPI()
 
-# 1. Data Validation Model (Pydantic)
 class EmailRequest(BaseModel):
     sender: str
     subject: Optional[str] = "No Subject"
     body: str
 
-# Gemini Setup (Apni API Key yahan dalein)
-# Gemini Setup
-api_key = os.getenv("GEMINI_API_KEY")
-genai.configure(api_key=api_key)
-model = genai.GenerativeModel('gemini-1.5-flash-latest')
-
 @app.get("/")
 def home():
-    return {"status": "Online", "agent": "Email Triage Agent Ready"}
+    return {"status": "Online", "agent": "Email Agent Ready"}
 
-# 2. Webhook Endpoint
 @app.post("/webhook")
 async def handle_email(email: EmailRequest):
-    print(f"New Email from: {email.sender}") # Ye Render ke logs mein dikhega
+    api_key = os.getenv("GEMINI_API_KEY")
+    # Direct API URL for Gemini 1.5 Flash
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
     
-    # AI ke liye Instructions
-    system_prompt = f"""
-    Analyze this email:
-    Sender: {email.sender}
-    Subject: {email.subject}
-    Body: {email.body}
-    
-    Task: 
-    1. Classify Intent (Refund, Question, Complaint, or Spam)
-    2. Write a 1-line Summary
-    3. Draft a short, professional reply
-    
-    Output format:
-    Intent: [Text]
-    Summary: [Text]
-    Reply: [Text]
-    """
-    
+    payload = {
+        "contents": [{
+            "parts": [{
+                "text": f"Analyze this email:\nSender: {email.sender}\nSubject: {email.subject}\nBody: {email.body}\n\nTask:\n1. Classify Intent\n2. 1-line Summary\n3. Short Reply\n\nOutput format:\nIntent: [Text]\nSummary: [Text]\nReply: [Text]"
+            }]
+        }]
+    }
+
     try:
-        response = model.generate_content(system_prompt)
+        response = requests.post(url, json=payload)
+        res_json = response.json()
+        
+        # AI ka jawab nikalna
+        ai_text = res_json['candidates'][0]['content']['parts'][0]['text']
+        
         return {
             "status": "success",
-            "ai_analysis": response.text
+            "ai_analysis": ai_text
         }
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": str(res_json) if 'res_json' in locals() else str(e)}
