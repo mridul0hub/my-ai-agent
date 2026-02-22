@@ -15,8 +15,8 @@ class EmailRequest(BaseModel):
 # Gemini Setup (Apni API Key yahan dalein)
 # Gemini Setup
 api_key = os.getenv("GEMINI_API_KEY")
-genai.configure(api_key="AIzaSyCAalvmpqhoydkScd0tVyOby1HnyWPRZWo")
-model = genai.GenerativeModel('gemini-pro')
+genai.configure(api_key=api_key)
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 @app.get("/")
 def home():
