@@ -1,11 +1,12 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Optional
-import requests
+import google.generativeai as genai
 import os
 
 app = FastAPI()
 
+# 1. Data Structure
 class EmailRequest(BaseModel):
     sender: str
     subject: Optional[str] = "No Subject"
@@ -13,36 +14,40 @@ class EmailRequest(BaseModel):
 
 @app.get("/")
 def home():
-    return {"status": "Online", "agent": "Email Agent Ready"}
+    return {"status": "Online", "agent": "Email Agent Active"}
 
+# 2. Webhook Endpoint (Make.com yahan data bhejega)
 @app.post("/webhook")
 async def handle_email(email: EmailRequest):
+    # Render se API key nikalna
     api_key = os.getenv("GEMINI_API_KEY")
+    genai.configure(api_key=api_key)
     
-    # Sabse stable model aur version (v1)
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent?key={api_key}"
+    # Aapke account ka LATEST model jo aapki list mein tha!
+    model = genai.GenerativeModel('gemini-2.5-flash')
     
-    payload = {
-        "contents": [{
-            "parts": [{
-                "text": f"Analyze this email:\nSender: {email.sender}\nSubject: {email.subject}\nBody: {email.body}\n\nTask:\n1. Classify Intent\n2. 1-line Summary\n3. Short Reply\n\nOutput format:\nIntent: [Text]\nSummary: [Text]\nReply: [Text]"
-            }]
-        }]
-    }
-
+    system_prompt = f"""
+    Analyze this email:
+    Sender: {email.sender}
+    Subject: {email.subject}
+    Body: {email.body}
+    
+    Task: 
+    1. Classify Intent (Refund, Question, Complaint, or Spam)
+    2. Write a 1-line Summary
+    3. Draft a short, professional reply
+    
+    Output format:
+    Intent: [Text]
+    Summary: [Text]
+    Reply: [Text]
+    """
+    
     try:
-        response = requests.post(url, json=payload)
-        res_json = response.json()
-        
-        # Agar error aaye toh poora error return karega
-        if 'error' in res_json:
-            return {"status": "error", "message": res_json['error']['message']}
-            
-        ai_text = res_json['candidates'][0]['content']['parts'][0]['text']
-        
+        response = model.generate_content(system_prompt)
         return {
             "status": "success",
-            "ai_analysis": ai_text
+            "ai_analysis": response.text
         }
     except Exception as e:
-        return {"status": "error", "message": "Connection error to Google AI"}
+        return {"status": "error", "message": str(e)}
