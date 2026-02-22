@@ -18,8 +18,9 @@ def home():
 @app.post("/webhook")
 async def handle_email(email: EmailRequest):
     api_key = os.getenv("GEMINI_API_KEY")
-    # Direct API URL for Gemini 1.5 Flash
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    
+    # Sabse stable model aur version (v1)
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent?key={api_key}"
     
     payload = {
         "contents": [{
@@ -33,7 +34,10 @@ async def handle_email(email: EmailRequest):
         response = requests.post(url, json=payload)
         res_json = response.json()
         
-        # AI ka jawab nikalna
+        # Agar error aaye toh poora error return karega
+        if 'error' in res_json:
+            return {"status": "error", "message": res_json['error']['message']}
+            
         ai_text = res_json['candidates'][0]['content']['parts'][0]['text']
         
         return {
@@ -41,4 +45,4 @@ async def handle_email(email: EmailRequest):
             "ai_analysis": ai_text
         }
     except Exception as e:
-        return {"status": "error", "message": str(res_json) if 'res_json' in locals() else str(e)}
+        return {"status": "error", "message": "Connection error to Google AI"}
