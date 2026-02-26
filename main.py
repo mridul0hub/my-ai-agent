@@ -7,7 +7,6 @@ import google.generativeai as genai
 
 app = FastAPI()
 
-# Data Structure (Pydantic use karna acchi baat hai, ise barkarar rakha hai)
 class EmailRequest(BaseModel):
     sender: str
     subject: Optional[str] = "No Subject"
@@ -15,36 +14,44 @@ class EmailRequest(BaseModel):
 
 @app.get("/")
 def home():
-    return {"status": "Online", "agent": "Professional AI Agent Active"}
+    return {"status": "Online", "agent": "Elite AI Support Executive Active"}
 
 @app.post("/webhook")
 async def handle_email(email: EmailRequest):
-    # API Key check
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         return {"status": "error", "message": "API Key missing in Environment Variables"}
     
     genai.configure(api_key=api_key)
     
-    # Model configuration
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    # Using Gemini 1.5/2.0 Flash for maximum speed/efficiency
+    model = genai.GenerativeModel('gemini-1.5-flash')
     
-    # 1% Level Prompt: Isse humein structured data milega
+    # BILLIONAIRE LEVEL PROMPT: Focus on CX (Customer Experience) & Precision
     system_prompt = f"""
-    You are an expert customer support AI. Analyze the email provided.
-    
-    STRICT INSTRUCTION: Return ONLY a valid JSON object. Do not include any conversational text before or after the JSON.
-    
+    You are a world-class Customer Success Executive for a premium brand. Your goal is to maximize customer retention and handle issues with elite precision.
+
+    STRICT INSTRUCTIONS:
+    1. CONTEXTUAL INTELLIGENCE: Do NOT ask for information already mentioned in the email (e.g., Order IDs, names, specific complaints). Acknowledge them directly.
+    2. URGENCY ANALYSIS: Classify the email as 'High', 'Medium', or 'Low'.
+       - 'High': Angry tone, legal threats, refund demands, or damaged product.
+       - 'Medium': General technical queries or order status updates.
+       - 'Low': Feedback or generic greetings.
+    3. TONE: Professional, empathetic, and concise.
+
     EMAIL TO ANALYZE:
     Sender: {email.sender}
     Subject: {email.subject}
     Body: {email.body}
+
+    OUTPUT: Return ONLY a valid JSON object.
     
     EXPECTED JSON STRUCTURE:
     {{
-        "intent": "One word only (Refund, Query, Complaint, or Spam)",
-        "summary": "A precise 1-line summary",
-        "draft": "A professional, polite reply draft"
+        "intent": "Short category (Refund, Complaint, Query, etc.)",
+        "urgency": "High/Medium/Low",
+        "summary": "A precise 1-line summary showing you understood the specific issue",
+        "draft": "A personalized, ready-to-send professional reply"
     }}
     """
     
@@ -52,29 +59,21 @@ async def handle_email(email: EmailRequest):
         response = model.generate_content(system_prompt)
         raw_text = response.text.strip()
         
-        # CLEANING LOGIC: Agar Gemini markdown code blocks use kare toh usey hatana
+        # CLEANING LOGIC (Robust for Markdown)
         if raw_text.startswith("```"):
-            # Pehli line (```json) aur aakhri line (```) ko hatana
             lines = raw_text.splitlines()
-            if lines[0].startswith("```"):
-                lines = lines[1:]
-            if lines[-1].startswith("```"):
-                lines = lines[:-1]
+            if lines[0].startswith("```"): lines = lines[1:]
+            if lines[-1].startswith("```"): lines = lines[:-1]
             raw_text = "\n".join(lines).strip()
         
-        # String ko Python Dictionary (JSON) mein badalna
         ai_data = json.loads(raw_text)
         
         return {
             "status": "success",
-            "data": ai_data  # Ab Make.com ko 'data.intent', 'data.summary' alag milenge
+            "data": ai_data
         }
         
     except json.JSONDecodeError:
-        return {
-            "status": "error", 
-            "message": "AI produced invalid JSON format",
-            "raw_response": response.text # Debugging ke liye
-        }
+        return {"status": "error", "message": "AI failed to produce valid JSON", "raw": response.text}
     except Exception as e:
         return {"status": "error", "message": str(e)}
