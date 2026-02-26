@@ -25,7 +25,7 @@ async def handle_email(email: EmailRequest):
     genai.configure(api_key=api_key)
     
     # Using Gemini 1.5/2.0 Flash for maximum speed/efficiency
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash')
     
     # BILLIONAIRE LEVEL PROMPT: Focus on CX (Customer Experience) & Precision
     system_prompt = f"""
